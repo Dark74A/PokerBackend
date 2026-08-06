@@ -45,7 +45,8 @@ public class LedgerProjection implements EventHandler {
                 EventType.SESSION_CREATED,
                 EventType.PLAYER_ADDED,
                 EventType.BUY_IN_ADDED,
-                EventType.PLAYER_REMOVED
+                EventType.PLAYER_REMOVED,
+                EventType.CASH_OUT_ADDED
         );
     }
 
