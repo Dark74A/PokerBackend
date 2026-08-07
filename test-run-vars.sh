@@ -1,0 +1,8 @@
+# Generated Fri Aug  7 09:25:45 PM IST 2026. Run: source test-run-vars.sh
+export BASE_URL="http://localhost:8080"
+export USERNAME="testuser_1786118144"
+export TOKEN="eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiI2YTc2MDAwMTcxYjc0ZDc1OTIwNmNhZmEiLCJ1c2VybmFtZSI6InRlc3R1c2VyXzE3ODYxMTgxNDQiLCJpYXQiOjE3ODYxMTgxNDUsImV4cCI6MTc4NjIwNDU0NX0.G_SU8ps249lHgn2a-8a_v9kVattbiMIyZ5Qg5cZEENYUp3Mc0VXQKDIsJTzqnDbH"
+export USER_ID="6a76000171b74d759206cafa"
+export SESSION_ID="32319c36-d613-440b-84ad-3699042d2574"
+export PLAYER_ID="7fbbea43-936f-4817-8bad-0f50f0ac26da"
+export BUYIN_ID="9986ded2-7b67-42b2-af1b-c53e26d56cc1"
