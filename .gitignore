@@ -33,3 +33,6 @@ build/
 .vscode/
 
 .env
+info.txt
+test-run-vars.sh
+test.sh
