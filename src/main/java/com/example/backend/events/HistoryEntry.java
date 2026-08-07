@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-@Document(collation = "history_projections")
+@Document(collection = "history_projections")
 @Builder
 public class HistoryEntry {
 

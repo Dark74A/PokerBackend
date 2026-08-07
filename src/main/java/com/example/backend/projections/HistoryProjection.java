@@ -6,7 +6,7 @@ import com.example.backend.events.EventType;
 import com.example.backend.events.HistoryEntry;
 import com.example.backend.repositories.HistoryEntryRepository;
 import com.example.backend.repositories.SessionProjectionRepository;
-import com.mongodb.DuplicateKeyException;
+import org.springframework.dao.DuplicateKeyException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
