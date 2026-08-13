@@ -10,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -56,5 +57,12 @@ public class MongoEventStore implements EventStore {
     public List<DomainEvent> loadEvents(String aggregateId) {
         return eventRepository
                 .findByAggregateIdOrderByVersionAsc(aggregateId);
+    }
+
+    @Override
+    public List<DomainEvent> loadEventsUntil(String aggregateId, Instant asOf) {
+        return loadEvents(aggregateId).stream()
+                .filter(e -> !e.getTimestamp().isAfter(asOf))
+                .toList();
     }
 }

@@ -230,6 +230,10 @@ public class SessionAggregate {
             throw new ValidationException("Cashout must be positive.");
         }
 
+        if (cmd.amount().compareTo(player.chipStack()) > 0) {
+            throw new ValidationException("Cannot cash out more than the player's current chip stack.");
+        }
+
         Map<String, Object> payload = new HashMap<>();
         String cashOutId = UUID.randomUUID().toString();
 
@@ -377,6 +381,48 @@ public class SessionAggregate {
         );
     }
 
+    public String handle(RecordHandCommand cmd) {
+
+        if (id == null) {
+            throw new SessionNotFoundException("Session does not exist.");
+        }
+
+        if (!hostId.equals(cmd.hostId())) {
+            throw new UnauthorizedActionException("You are not the host");
+        }
+
+        if (status == SessionStatus.CLOSED) {
+            throw new InvalidSessionStateException("Session is closed.");
+        }
+
+        BigDecimal sum = cmd.deltas().values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (sum.compareTo(BigDecimal.ZERO) != 0) {
+            throw new ValidationException("Hand deltas must sum to zero — chips can only move between players, not appear or vanish.");
+        }
+
+        String handId = UUID.randomUUID().toString();
+
+
+        raise(new DomainEvent(
+                UUID.randomUUID().toString(),
+                id,
+                "Session",
+                version + 1,
+                Instant.now(),
+                EventType.HAND_PLAYED,
+                cmd.hostId(),
+                Map.of(
+                        "handId", handId,
+                        "deltas", cmd.deltas()
+                ),
+                Map.of()
+        ));
+
+        return handId;
+    }
+
     private void raise(DomainEvent event) {
         apply(event);
         uncommittedEvents.add(event);
@@ -402,6 +448,7 @@ public class SessionAggregate {
                         (String) payload.get("displayName"),
                         BigDecimal.ZERO,
                         BigDecimal.ZERO,
+                        BigDecimal.ZERO,
                         PlayerStatus.ACTIVE,
                         ""
                 );
@@ -420,6 +467,7 @@ public class SessionAggregate {
                         existing.displayName(),
                         existing.totalBuyIn().add(amount),
                         existing.totalCashOut(),
+                        existing.chipStack().add(amount),
                         existing.status(),
                         existing.notes()
                 );
@@ -438,11 +486,45 @@ public class SessionAggregate {
                         player.displayName(),
                         player.totalBuyIn(),
                         player.totalCashOut().add(amount),
+                        player.chipStack().subtract(amount),
                         player.status(),
                         player.notes()
                 );
 
                 players.put(playerId, updatedPlayer);
+            }
+
+            case HAND_PLAYED -> {
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> rawDeltas =
+                        (Map<String, Object>) event.getPayload().get("deltas");
+
+                for (Map.Entry<String, Object> entry : rawDeltas.entrySet()) {
+                    String playerId = entry.getKey();
+                    BigDecimal delta = toBigDecimal(entry.getValue());
+
+                    Player player = players.get(playerId);
+
+                    if (player == null) {
+                        throw new IllegalStateException(
+                                "Player " + playerId + " not found in session"
+                        );
+                    }
+
+                    Player updatedPlayer = new Player(
+                            player.playerId(),
+                            player.userId(),
+                            player.displayName(),
+                            player.totalBuyIn(),
+                            player.totalCashOut(),
+                            player.chipStack().add(delta),
+                            player.status(),
+                            player.notes()
+                    );
+
+                    players.put(playerId, updatedPlayer);
+                }
             }
 
             case SESSION_CLOSED -> this.status = SessionStatus.CLOSED;
@@ -462,6 +544,7 @@ public class SessionAggregate {
                         player.displayName(),
                         player.totalBuyIn(),
                         player.totalCashOut(),
+                        player.chipStack(),
                         PlayerStatus.INACTIVE,
                         player.notes()
                 );

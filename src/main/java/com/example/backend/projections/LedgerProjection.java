@@ -3,10 +3,18 @@ package com.example.backend.projections;
 import com.example.backend.events.DomainEvent;
 import com.example.backend.events.EventHandler;
 import com.example.backend.events.EventType;
+import com.example.backend.exception.SessionNotFoundException;
 import com.example.backend.model.PlayerStatus;
 import com.example.backend.model.SessionStatus;
+import com.example.backend.repositories.SessionProjectionRepository;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
+import com.mongodb.client.model.Filters;
+import jdk.jfr.Event;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.Decimal128;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -14,10 +22,15 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Filter;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -25,6 +38,7 @@ import java.util.Set;
 public class LedgerProjection implements EventHandler {
 
     private final MongoTemplate mongoTemplate;
+    private final SessionProjectionRepository sessionProjectionRepository;
 
     private static BigDecimal toBigDecimal(Object value) {
         if (value instanceof BigDecimal bd) {
@@ -46,7 +60,8 @@ public class LedgerProjection implements EventHandler {
                 EventType.PLAYER_ADDED,
                 EventType.BUY_IN_ADDED,
                 EventType.PLAYER_REMOVED,
-                EventType.CASH_OUT_ADDED
+                EventType.CASH_OUT_ADDED,
+                EventType.HAND_PLAYED
         );
     }
 
@@ -58,6 +73,7 @@ public class LedgerProjection implements EventHandler {
             case EventType.BUY_IN_ADDED -> handleBuyInAdded(event);
             case EventType.CASH_OUT_ADDED -> handleCashOutAdded(event);
             case EventType.PLAYER_REMOVED -> handlePlayerRemoved(event);
+            case EventType.HAND_PLAYED -> handleHandPlayed(event);
             default -> throw new IllegalStateException(
                     "Unsupported event: " + event.getEventType());
         }
@@ -131,6 +147,7 @@ public class LedgerProjection implements EventHandler {
 
         Update update = new Update()
                 .inc("players.$.totalBuyIn", amount)
+                .inc("players.$.chipStack", amount)
                 .set("updatedAt", event.getTimestamp())
                 .set("lastAppliedVersion", event.getVersion());
 
@@ -166,6 +183,7 @@ public class LedgerProjection implements EventHandler {
 
         Update update = new Update()
                 .inc("players.$.totalCashOut", amount)
+                .inc("players.$.chipStack", amount.negate())
                 .set("updatedAt", event.getTimestamp())
                 .set("lastAppliedVersion", event.getVersion());
 
@@ -185,6 +203,40 @@ public class LedgerProjection implements EventHandler {
                     event.getAggregateId()
             );
         }
+    }
+
+    private void handleHandPlayed(DomainEvent event) {
+
+        SessionProjection projection = sessionProjectionRepository
+                .findById(event.getAggregateId())
+                .orElseThrow(() ->
+                        new SessionNotFoundException(event.getAggregateId()));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rawDeltas =
+                (Map<String, Object>) event.getPayload().get("deltas");
+
+        Map<String, BigDecimal> deltas = rawDeltas.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> toBigDecimal(e.getValue())
+                ));
+
+        for (PlayerProjection player : projection.getPlayers()) {
+
+            BigDecimal delta = deltas.get(player.getPlayerId());
+
+            if (delta != null) {
+                player.setChipStack(
+                        player.getChipStack().add(delta)
+                );
+            }
+        }
+
+        projection.setUpdatedAt(event.getTimestamp());
+        projection.setLastAppliedVersion(event.getVersion());
+
+        sessionProjectionRepository.save(projection);
     }
 
     private void handlePlayerRemoved(DomainEvent event) {

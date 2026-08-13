@@ -8,5 +8,6 @@ public record PlayerResponse(
         BigDecimal totalBuyIn,
         BigDecimal totalCashOut,
         BigDecimal profitLoss,
+        BigDecimal chipStack,
         String status
 ) {}

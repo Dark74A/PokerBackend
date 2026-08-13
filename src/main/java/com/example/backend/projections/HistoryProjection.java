@@ -6,13 +6,16 @@ import com.example.backend.events.EventType;
 import com.example.backend.events.HistoryEntry;
 import com.example.backend.repositories.HistoryEntryRepository;
 import com.example.backend.repositories.SessionProjectionRepository;
+import org.bson.types.Decimal128;
 import org.springframework.dao.DuplicateKeyException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -21,6 +24,19 @@ public class HistoryProjection implements EventHandler {
 
     private final HistoryEntryRepository historyEntryRepository;
     private final SessionProjectionRepository sessionProjectionRepository;
+
+    private static BigDecimal toBigDecimal(Object value) {
+        if (value instanceof BigDecimal bd) {
+            return bd;
+        }
+        if (value instanceof Decimal128 d128) {
+            return d128.bigDecimalValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        throw new IllegalStateException("Unexpected type for BigDecimal field: " + value.getClass());
+    }
 
     @Override
     public Set<String> supportedEventTypes() {
@@ -32,7 +48,8 @@ public class HistoryProjection implements EventHandler {
                 EventType.CASH_OUT_ADDED,
                 EventType.SESSION_CLOSED,
                 EventType.SESSION_ARCHIVED,
-                EventType.SESSION_REOPENED
+                EventType.SESSION_REOPENED,
+                EventType.HAND_PLAYED
         );
     }
 
@@ -81,6 +98,8 @@ public class HistoryProjection implements EventHandler {
             case EventType.SESSION_CLOSED -> "Session closed";
             case EventType.SESSION_ARCHIVED -> "Session archived";
             case EventType.SESSION_REOPENED -> "Session reopened";
+            case EventType.HAND_PLAYED -> buildHandPlayedDescription(event);
+
 
             default -> "Unknown event: " + event.getEventType();
         };
@@ -93,5 +112,27 @@ public class HistoryProjection implements EventHandler {
                         .findFirst())
                 .map(PlayerProjection::getDisplayName)
                 .orElse("Unknown player");
+    }
+
+    private String buildHandPlayedDescription(DomainEvent event) {
+        Map<String, Object> payload = event.getPayload();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rawDeltas =
+                (Map<String, Object>) payload.get("deltas");
+
+        return rawDeltas.entrySet().stream()
+                .map(entry -> {
+                    String playerId = entry.getKey();
+                    BigDecimal amount = toBigDecimal(entry.getValue());
+
+                    String playerName =
+                            resolvePlayerName(event.getAggregateId(), playerId);
+
+                    String sign = amount.signum() >= 0 ? "+" : "-";
+
+                    return playerName + " " + sign + "₹" + amount.abs();
+                })
+                .collect(Collectors.joining(", ", "Hand played — ", ""));
     }
 }

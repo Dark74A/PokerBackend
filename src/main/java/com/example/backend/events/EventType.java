@@ -13,4 +13,6 @@ public class EventType {
     public static final String SESSION_REOPENED = "SessionReopened";
     public static final String PLAYER_REMOVED = "PlayerRemoved";
 
+    public static final String HAND_PLAYED = "HandPlayed";
+
 }

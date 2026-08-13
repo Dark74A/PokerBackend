@@ -8,6 +8,7 @@ public record Player(
         String displayName,
         BigDecimal totalBuyIn,
         BigDecimal totalCashOut,
+        BigDecimal chipStack,
         PlayerStatus status,
         String notes
 ) {}

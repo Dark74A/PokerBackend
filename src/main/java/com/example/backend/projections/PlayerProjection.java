@@ -23,5 +23,8 @@ public class PlayerProjection {
     @Builder.Default
     private BigDecimal totalCashOut = BigDecimal.ZERO;
 
+    @Builder.Default
+    private BigDecimal chipStack = BigDecimal.ZERO;
+
     private String status;
 }

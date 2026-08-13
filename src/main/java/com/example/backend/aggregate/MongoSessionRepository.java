@@ -2,10 +2,12 @@ package com.example.backend.aggregate;
 
 import com.example.backend.events.DomainEvent;
 import com.example.backend.events.EventStore;
+import com.example.backend.exception.SessionNotFoundException;
 import com.example.backend.repositories.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -31,5 +33,16 @@ public class MongoSessionRepository implements SessionRepository {
                 aggregate.getUncommittedEvents()
         );
 
+    }
+
+    public SessionAggregate loadAsOf(String sessionId, Instant asOf) {
+        List<DomainEvent> events = eventStore.loadEventsUntil(sessionId, asOf);
+        SessionAggregate aggregate = SessionAggregate.rehydrate(events);
+
+        if (aggregate.getId() == null) {
+            throw new SessionNotFoundException(sessionId);
+        }
+
+        return aggregate;
     }
 }
