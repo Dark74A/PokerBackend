@@ -1,6 +1,7 @@
 package com.example.backend.repositories;
 
 import com.example.backend.events.DomainEvent;
+import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
@@ -13,5 +14,10 @@ public interface EventRepository extends MongoRepository<DomainEvent, String> {
     );
 
     Optional<DomainEvent> findTopByAggregateIdOrderByVersionDesc(String aggregateId);
+
+    @Aggregation(pipeline = {
+            "{ '$group': { '_id': '$aggregateId' } }"
+    })
+    List<String> findDistinctAggregateIds();
 
 }

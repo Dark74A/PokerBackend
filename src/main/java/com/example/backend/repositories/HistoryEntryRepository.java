@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface HistoryEntryRepository extends MongoRepository<HistoryEntry, String> {
     List<HistoryEntry> findBySessionIdOrderByVersionAsc(String sessionId);
+    void deleteBySessionId(String sessionId);
 }

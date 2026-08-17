@@ -65,4 +65,9 @@ public class MongoEventStore implements EventStore {
                 .filter(e -> !e.getTimestamp().isAfter(asOf))
                 .toList();
     }
+
+    @Override
+    public List<String> loadAllAggregateIds() {
+        return eventRepository.findDistinctAggregateIds();
+    }
 }

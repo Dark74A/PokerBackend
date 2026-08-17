@@ -6,10 +6,12 @@ import com.example.backend.dto.request.*;
 import com.example.backend.dto.response.*;
 import com.example.backend.events.HistoryEntry;
 import com.example.backend.exception.SessionNotFoundException;
+import com.example.backend.exception.UnauthorizedActionException;
 import com.example.backend.handlers.*;
 import com.example.backend.helpers.CurrentUserProvider;
 import com.example.backend.helpers.IdGenerator;
 import com.example.backend.projections.PlayerProjection;
+import com.example.backend.projections.ProjectionRebuilder;
 import com.example.backend.projections.SessionProjection;
 import com.example.backend.repositories.HistoryEntryRepository;
 import com.example.backend.repositories.SessionProjectionRepository;
@@ -23,6 +25,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -45,6 +48,8 @@ public class SessionController {
     private final RemovePlayerHandler removePlayerHandler;
     private final RecordHandHandler recordHandHandler;
     private final HistoryEntryRepository historyEntryRepository;
+
+    private final ProjectionRebuilder projectionRebuilder;
 
     @PostMapping
     public ResponseEntity<CreateSessionResponse> createSession(@Valid @RequestBody CreateSessionRequest request) {
@@ -287,6 +292,22 @@ public class SessionController {
                 .toList();
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("{sessionId}/rebuild-projections")
+    public ResponseEntity<Void> rebuildProjections(@PathVariable String sessionId) {
+        String currentUserId = currentUserProvider.getCurrentUserId();
+
+        SessionAggregate aggregate = sessionRepository.load(sessionId);
+        if (aggregate.getId() == null) {
+            throw new SessionNotFoundException(sessionId);
+        }
+        if (!aggregate.getHostId().equals(currentUserId)) {
+            throw new UnauthorizedActionException("Only the host can rebuild this session's projections.");
+        }
+
+        projectionRebuilder.rebuildForSession(sessionId);
+        return ResponseEntity.noContent().build();
     }
 }
 

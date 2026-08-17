@@ -36,3 +36,4 @@ build/
 info.txt
 test-run-vars.sh
 test.sh
+rebuild.sh
