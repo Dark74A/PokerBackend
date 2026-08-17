@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sessions")
